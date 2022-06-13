@@ -50,12 +50,20 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     // purposes.
     private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
+
+    // 配置
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
+
     private volatile EventLoopGroup childGroup;
+
     private volatile ChannelHandler childHandler;
 
     public ServerBootstrap() { }
 
+    /**
+     * 克隆bootstrap 使用本构造方法
+     * @param bootstrap
+     */
     private ServerBootstrap(ServerBootstrap bootstrap) {
         super(bootstrap);
         childGroup = bootstrap.childGroup;
@@ -129,7 +137,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
+        // 设置 option
         setChannelOptions(channel, newOptionsArray(), logger);
+        // 设置 attrs
         setAttributes(channel, newAttributesArray());
 
         ChannelPipeline p = channel.pipeline();
@@ -139,6 +149,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
 
+        //ChannelInitializer一次性、初始化handler:
+        //负责添加一个ServerBootstrapAcceptor handler，添加完后，自己就移除了:
+        //ServerBootstrapAcceptor handler： 负责接收客户端连接创建连接后，对连接的初始化工作。
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
@@ -151,8 +164,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
-                        pipeline.addLast(new ServerBootstrapAcceptor(
-                                ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
+                        pipeline.addLast(
+                            new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
                 });
             }
@@ -179,7 +192,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         private final Entry<ChannelOption<?>, Object>[] childOptions;
         private final Entry<AttributeKey<?>, Object>[] childAttrs;
         private final Runnable enableAutoReadTask;
-
+        //接受连接后的后续处理
         ServerBootstrapAcceptor(
                 final Channel channel, EventLoopGroup childGroup, ChannelHandler childHandler,
                 Entry<ChannelOption<?>, Object>[] childOptions, Entry<AttributeKey<?>, Object>[] childAttrs) {
@@ -188,7 +201,10 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             this.childOptions = childOptions;
             this.childAttrs = childAttrs;
 
+            // 计划重新启用自动读取的任务。
             // Task which is scheduled to re-enable auto-read.
+
+            // 在尝试提交之前创建这个 Runnable 非常重要，否则 URLClassLoader 可能无法加载类，因为它已经达到了文件限制。
             // It's important to create this Runnable before we try to submit it as otherwise the URLClassLoader may
             // not be able to load the class because of the file limit it already reached.
             //
@@ -251,8 +267,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return new ServerBootstrap(this);
     }
 
-    /**
-     * Return the configured {@link EventLoopGroup} which will be used for the child channels or {@code null}
+    /**ls or {@code null}
+     * Return the configured {@link EventLoopGroup} which will be used for the child channe
      * if non is configured yet.
      *
      * @deprecated Use {@link #config()} instead.

@@ -24,8 +24,8 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 
 /**
- * A {@link ChannelOption} allows to configure a {@link ChannelConfig} in a type-safe
- * way. Which {@link ChannelOption} is supported depends on the actual implementation
+ * A {@link ChannelOption} allows to configure a {@link ChannelConfig} in a type-safe way.
+ * Which {@link ChannelOption} is supported depends on the actual implementation
  * of {@link ChannelConfig} and may depend on the nature of the transport it belongs
  * to.
  *
@@ -103,30 +103,32 @@ public class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
             valueOf("WRITE_BUFFER_WATER_MARK");
 
     public static final ChannelOption<Boolean> ALLOW_HALF_CLOSURE = valueOf("ALLOW_HALF_CLOSURE");
-    public static final ChannelOption<Boolean> AUTO_READ = valueOf("AUTO_READ");
+
+
+    public static final ChannelOption<Boolean> AUTO_READ    = valueOf("AUTO_READ");
 
     /**
      * If {@code true} then the {@link Channel} is closed automatically and immediately on write failure.
      * The default value is {@code true}.
      */
-    public static final ChannelOption<Boolean> AUTO_CLOSE = valueOf("AUTO_CLOSE");
+    public static final ChannelOption<Boolean> AUTO_CLOSE   = valueOf("AUTO_CLOSE");
 
     public static final ChannelOption<Boolean> SO_BROADCAST = valueOf("SO_BROADCAST");
     public static final ChannelOption<Boolean> SO_KEEPALIVE = valueOf("SO_KEEPALIVE");
-    public static final ChannelOption<Integer> SO_SNDBUF = valueOf("SO_SNDBUF");
-    public static final ChannelOption<Integer> SO_RCVBUF = valueOf("SO_RCVBUF");
+    public static final ChannelOption<Integer> SO_SNDBUF    = valueOf("SO_SNDBUF");
+    public static final ChannelOption<Integer> SO_RCVBUF    = valueOf("SO_RCVBUF");
     public static final ChannelOption<Boolean> SO_REUSEADDR = valueOf("SO_REUSEADDR");
-    public static final ChannelOption<Integer> SO_LINGER = valueOf("SO_LINGER");
-    public static final ChannelOption<Integer> SO_BACKLOG = valueOf("SO_BACKLOG");
-    public static final ChannelOption<Integer> SO_TIMEOUT = valueOf("SO_TIMEOUT");
+    public static final ChannelOption<Integer> SO_LINGER    = valueOf("SO_LINGER");
+    public static final ChannelOption<Integer> SO_BACKLOG   = valueOf("SO_BACKLOG");
+    public static final ChannelOption<Integer> SO_TIMEOUT   = valueOf("SO_TIMEOUT");
 
-    public static final ChannelOption<Integer> IP_TOS = valueOf("IP_TOS");
-    public static final ChannelOption<InetAddress> IP_MULTICAST_ADDR = valueOf("IP_MULTICAST_ADDR");
-    public static final ChannelOption<NetworkInterface> IP_MULTICAST_IF = valueOf("IP_MULTICAST_IF");
-    public static final ChannelOption<Integer> IP_MULTICAST_TTL = valueOf("IP_MULTICAST_TTL");
-    public static final ChannelOption<Boolean> IP_MULTICAST_LOOP_DISABLED = valueOf("IP_MULTICAST_LOOP_DISABLED");
+    public static final ChannelOption<Integer> IP_TOS                       = valueOf("IP_TOS");
+    public static final ChannelOption<InetAddress> IP_MULTICAST_ADDR        = valueOf("IP_MULTICAST_ADDR");
+    public static final ChannelOption<NetworkInterface> IP_MULTICAST_IF     = valueOf("IP_MULTICAST_IF");
+    public static final ChannelOption<Integer> IP_MULTICAST_TTL             = valueOf("IP_MULTICAST_TTL");
+    public static final ChannelOption<Boolean> IP_MULTICAST_LOOP_DISABLED   = valueOf("IP_MULTICAST_LOOP_DISABLED");
+    public static final ChannelOption<Boolean> TCP_NODELAY                  = valueOf("TCP_NODELAY");
 
-    public static final ChannelOption<Boolean> TCP_NODELAY = valueOf("TCP_NODELAY");
     /**
      * Client-side TCP FastOpen. Sending data with the initial TCP handshake.
      */

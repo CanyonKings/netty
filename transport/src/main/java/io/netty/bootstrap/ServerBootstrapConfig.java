@@ -26,6 +26,7 @@ import java.util.Map;
 
 /**
  * Exposes the configuration of a {@link ServerBootstrapConfig}.
+ *
  */
 public final class ServerBootstrapConfig extends AbstractBootstrapConfig<ServerBootstrap, ServerChannel> {
 

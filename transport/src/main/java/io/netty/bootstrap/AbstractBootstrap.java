@@ -16,16 +16,7 @@
 
 package io.netty.bootstrap;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ReflectiveChannelFactory;
+import io.netty.channel.*;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -44,19 +35,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}. It support
- * method-chaining to provide an easy way to configure the {@link AbstractBootstrap}.
+ * 是一个帮助类
+ * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}.
+ *
+ * 它 支持 方法链 ， 提供 一个简单的方式 来配置 bootstrap
+ * It support method-chaining to provide an easy way to configure the {@link AbstractBootstrap}.
  *
  * <p>When not used in a {@link ServerBootstrap} context, the {@link #bind()} methods are useful for connectionless
  * transports such as datagram (UDP).</p>
  */
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
+
     @SuppressWarnings("unchecked")
     private static final Map.Entry<ChannelOption<?>, Object>[] EMPTY_OPTION_ARRAY = new Map.Entry[0];
     @SuppressWarnings("unchecked")
     private static final Map.Entry<AttributeKey<?>, Object>[] EMPTY_ATTRIBUTE_ARRAY = new Map.Entry[0];
 
     volatile EventLoopGroup group;
+
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
     private volatile SocketAddress localAddress;
@@ -64,11 +60,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     // The order in which ChannelOptions are applied is important they may depend on each other for validation
     // purposes.
     private final Map<ChannelOption<?>, Object> options = new LinkedHashMap<ChannelOption<?>, Object>();
+    // attributeKey 的作用是什么
     private final Map<AttributeKey<?>, Object> attrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
+
     private volatile ChannelHandler handler;
 
     AbstractBootstrap() {
         // Disallow extending from a different package.
+        //不允许从不同的包扩展
     }
 
     AbstractBootstrap(AbstractBootstrap<B, C> bootstrap) {
@@ -104,6 +103,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
+     *
+     * 设置要被实例化的Channel类
      */
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
@@ -112,30 +113,17 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * @deprecated Use {@link #channelFactory(io.netty.channel.ChannelFactory)} instead.
+     *  Use {@link #channelFactory(io.netty.channel.ChannelFactory)} instead.
      */
-    @Deprecated
     public B channelFactory(ChannelFactory<? extends C> channelFactory) {
         ObjectUtil.checkNotNull(channelFactory, "channelFactory");
         if (this.channelFactory != null) {
             throw new IllegalStateException("channelFactory set already");
         }
-
         this.channelFactory = channelFactory;
         return self();
     }
 
-    /**
-     * {@link io.netty.channel.ChannelFactory} which is used to create {@link Channel} instances from
-     * when calling {@link #bind()}. This method is usually only used if {@link #channel(Class)}
-     * is not working for you because of some more complex needs. If your {@link Channel} implementation
-     * has a no-args constructor, its highly recommend to just use {@link #channel(Class)} to
-     * simplify your code.
-     */
-    @SuppressWarnings({ "unchecked", "deprecation" })
-    public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
-        return channelFactory((ChannelFactory<C>) channelFactory);
-    }
 
     /**
      * The {@link SocketAddress} which is used to bind the local "end" to.
@@ -268,13 +256,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /**
+     *
+     * @param localAddress
+     * @return
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化并注册一个 Channel 对象，因为注册是异步的过程，所以返回一个 ChannelFuture 对象。
         final ChannelFuture regFuture = initAndRegister();
+
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
+        //不能肯定register完成，因为register是丢到nio event loop里面执行去了。
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
@@ -282,7 +278,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return promise;
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
+            // future的注册几乎总是已经实现，但以防万一还没有完成。 // future没有完成
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
+            //等着register完成来通知再执行bind
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
@@ -307,12 +305,16 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 通过工厂创建一个 channel
             channel = channelFactory.newChannel();
+            // 初始化 channel
             init(channel);
         } catch (Throwable t) {
+            //channel 创建报错
             if (channel != null) {
                 // channel can be null if newChannel crashed (eg SocketException("too many open files"))
                 channel.unsafe().closeForcibly();
+
                 // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
                 return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
             }
@@ -328,14 +330,20 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                 channel.unsafe().closeForcibly();
             }
         }
-
+        // 如果我们在这里，并且承诺没有失败，这是以下情况之一：
         // If we are here and the promise is not failed, it's one of the following cases:
+        // 1) 如果我们尝试从事件循环注册，注册已经在这一点上完成
         // 1) If we attempted registration from the event loop, the registration has been completed at this point.
+        //    例如，现在尝试 bind ()或 connect ()是安全的，因为通道已经注册。
         //    i.e. It's safe to attempt bind() or connect() now because the channel has been registered.
+        // 2) 如果我们尝试从另一个线程注册，注册请求已成功地添加到事件循环的任务队列中，以便稍后执行。
         // 2) If we attempted registration from the other thread, the registration request has been successfully
         //    added to the event loop's task queue for later execution.
+        //    例如，现在尝试 bind ()或 connect ()是安全的
         //    i.e. It's safe to attempt bind() or connect() now:
+        //         因为 bind ()或 connect ()将在执行计划的注册任务之后执行
         //         because bind() or connect() will be executed *after* the scheduled registration task is executed
+        //         因为 register ()、 bind ()和 connect ()都绑定到同一个线程。
         //         because register(), bind(), and connect() are all bound to the same thread.
 
         return regFuture;
@@ -344,11 +352,13 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     abstract void init(Channel channel) throws Exception;
 
     private static void doBind0(
-            final ChannelFuture regFuture, final Channel channel,
-            final SocketAddress localAddress, final ChannelPromise promise) {
+            final ChannelFuture regFuture,
+            final Channel channel,
+            final SocketAddress localAddress,
+            final ChannelPromise promise) {
 
-        // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
-        // the pipeline in its channelRegistered() implementation.
+        // This method is invoked before channelRegistered() is triggered.
+        // Give user handlers a chance to set up the pipeline in its channelRegistered() implementation.
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {

@@ -238,7 +238,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         BlockingQueue<Runnable> taskQueue = (BlockingQueue<Runnable>) this.taskQueue;
         for (;;) {
             ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
-            if (scheduledTask == null) {
+            if (scheduledTask == null){
                 Runnable task = null;
                 try {
                     task = taskQueue.take();
@@ -914,11 +914,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         return threadProperties;
     }
 
-    /**
-     * @deprecated use {@link AbstractEventExecutor.LazyRunnable}
-     */
-    @Deprecated
-    protected interface NonWakeupRunnable extends LazyRunnable { }
+
 
     /**
      * Can be overridden to control which tasks require waking the {@link EventExecutor} thread

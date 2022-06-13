@@ -45,22 +45,19 @@ import java.util.Map;
  * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
  * NIO selector based implementation to accept new connections.
  */
-public class NioServerSocketChannel extends AbstractNioMessageChannel
-                             implements io.netty.channel.socket.ServerSocketChannel {
-
+public class NioServerSocketChannel extends AbstractNioMessageChannel implements io.netty.channel.socket.ServerSocketChannel {
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
-
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
-
-    private static final Method OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY =
-            SelectorProviderUtil.findOpenMethod("openServerSocketChannel");
-
+    private static final Method OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY = SelectorProviderUtil.findOpenMethod("openServerSocketChannel");
     private static ServerSocketChannel newChannel(SelectorProvider provider, InternetProtocolFamily family) {
         try {
-            ServerSocketChannel channel =
-                    SelectorProviderUtil.newChannel(OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY, provider, family);
-            return channel == null ? provider.openServerSocketChannel() : channel;
+            ServerSocketChannel channel = SelectorProviderUtil.newChannel(OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY, provider, family);
+            if(channel == null){
+                return provider.openServerSocketChannel();
+            } else {
+                return channel;
+            }
         } catch (IOException e) {
             throw new ChannelException("Failed to open a socket.", e);
         }
@@ -138,8 +135,10 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
         if (PlatformDependent.javaVersion() >= 7) {
+            // java NIO ServerSocketChannel 绑定地址
             javaChannel().bind(localAddress, config.getBacklog());
         } else {
+            // java7 之前需要先获取socket再进行bind
             javaChannel().socket().bind(localAddress, config.getBacklog());
         }
     }
