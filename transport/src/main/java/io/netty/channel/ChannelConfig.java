@@ -26,8 +26,7 @@ import java.util.Map;
  * A set of configuration properties of a {@link Channel}.
  * <p>
  * Please down-cast to more specific configuration type such as
- * {@link SocketChannelConfig} or use {@link #setOptions(Map)} to set the
- * transport-specific properties:
+ * {@link SocketChannelConfig} or use {@link #setOptions(Map)} to set the  transport-specific properties:
  * <pre>
  * {@link Channel} ch = ...;
  * {@link SocketChannelConfig} cfg = <strong>({@link SocketChannelConfig}) ch.getConfig();</strong>
@@ -36,9 +35,8 @@ import java.util.Map;
  *
  * <h3>Option map</h3>
  *
- * An option map property is a dynamic write-only property which allows
- * the configuration of a {@link Channel} without down-casting its associated
- * {@link ChannelConfig}.  To update an option map, please call {@link #setOptions(Map)}.
+ * An option map property is a dynamic write-only property which allows the configuration of a {@link Channel} without down-casting its associated {@link ChannelConfig}.
+ * To update an option map, please call {@link #setOptions(Map)}.
  * <p>
  * All {@link ChannelConfig} has the following options:
  *
@@ -151,11 +149,10 @@ public interface ChannelConfig {
     int getWriteSpinCount();
 
     /**
-     * Sets the maximum loop count for a write operation until
-     * {@link WritableByteChannel#write(ByteBuffer)} returns a non-zero value.
+     * Sets the maximum loop count for a write operation until {@link WritableByteChannel#write(ByteBuffer)} returns a non-zero value.
      * It is similar to what a spin lock is used for in concurrency programming.
-     * It improves memory utilization and write throughput depending on
-     * the platform that JVM runs on.  The default value is {@code 16}.
+     * It improves memory utilization and write throughput depending on the platform that JVM runs on.
+     * The default value is {@code 16}.
      *
      * @throws IllegalArgumentException
      *         if the specified value is {@code 0} or less than {@code 0}
@@ -169,8 +166,8 @@ public interface ChannelConfig {
     ByteBufAllocator getAllocator();
 
     /**
-     * Set the {@link ByteBufAllocator} which is used for the channel
-     * to allocate buffers.
+     * Set the {@link ByteBufAllocator} which is used for the channel to allocate buffers.
+     * 设置缓冲分配器
      */
     ChannelConfig setAllocator(ByteBufAllocator allocator);
 
@@ -181,6 +178,7 @@ public interface ChannelConfig {
 
     /**
      * Set the {@link RecvByteBufAllocator} which is used for the channel to allocate receive buffers.
+     * 设置缓冲回收器
      */
     ChannelConfig setRecvByteBufAllocator(RecvByteBufAllocator allocator);
 
@@ -191,78 +189,76 @@ public interface ChannelConfig {
     boolean isAutoRead();
 
     /**
-     * Sets if {@link ChannelHandlerContext#read()} will be invoked automatically so that a user application doesn't
-     * need to call it at all. The default value is {@code true}.
+     * Sets if {@link ChannelHandlerContext#read()} will be invoked automatically so that a user application doesn't need to call it at all.
+     * The default value is {@code true}.
+     * 设置自动读取标志位，默认
      */
     ChannelConfig setAutoRead(boolean autoRead);
 
     /**
-     * Returns {@code true} if and only if the {@link Channel} will be closed automatically and immediately on
-     * write failure. The default is {@code true}.
+     * Returns {@code true} if and only if the {@link Channel} will be closed automatically and immediately on write failure.
+     * The default is {@code true}.
      */
     boolean isAutoClose();
 
     /**
      * Sets whether the {@link Channel} should be closed automatically and immediately on write failure.
      * The default is {@code true}.
+     * 设置自动关闭标志位，默认为true
      */
     ChannelConfig setAutoClose(boolean autoClose);
 
     /**
-     * Returns the high water mark of the write buffer.  If the number of bytes
-     * queued in the write buffer exceeds this value, {@link Channel#isWritable()}
-     * will start to return {@code false}.
+     * Returns the high water mark of the write buffer.
+     * If the number of bytes queued in the write buffer exceeds this value, {@link Channel#isWritable()} will start to return {@code false}.
+     *
      */
     int getWriteBufferHighWaterMark();
 
     /**
      * <p>
-     * Sets the high water mark of the write buffer.  If the number of bytes
-     * queued in the write buffer exceeds this value, {@link Channel#isWritable()}
-     * will start to return {@code false}.
+     * Sets the high water mark of the write buffer.
+     * If the number of bytes queued in the write buffer exceeds this value, {@link Channel#isWritable()} will start to return {@code false}.
+     * 设置缓冲高水位线
      */
     ChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark);
 
     /**
-     * Returns the low water mark of the write buffer.  Once the number of bytes
-     * queued in the write buffer exceeded the
-     * {@linkplain #setWriteBufferHighWaterMark(int) high water mark} and then
-     * dropped down below this value, {@link Channel#isWritable()} will start to return
-     * {@code true} again.
+     * Returns the low water mark of the write buffer.
+     * Once the number of bytes queued in the write buffer exceeded the {@linkplain #setWriteBufferHighWaterMark(int) high water mark} and then dropped down below this value, {@link Channel#isWritable()} will start to return {@code true} again.
      */
     int getWriteBufferLowWaterMark();
 
     /**
      * <p>
-     * Sets the low water mark of the write buffer.  Once the number of bytes
-     * queued in the write buffer exceeded the
-     * {@linkplain #setWriteBufferHighWaterMark(int) high water mark} and then
-     * dropped down below this value, {@link Channel#isWritable()} will start to return
-     * {@code true} again.
+     * Sets the low water mark of the write buffer.
+     * Once the number of bytes queued in the write buffer exceeded the
+     * {@linkplain #setWriteBufferHighWaterMark(int) high water mark} and then dropped down below this value, {@link Channel#isWritable()} will start to return {@code true} again.
+     * 设置缓冲低水位线
      */
     ChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark);
 
+
     /**
-     * Returns {@link MessageSizeEstimator} which is used for the channel
-     * to detect the size of a message.
+     * Returns {@link MessageSizeEstimator} which is used for the channel to detect the size of a message.
      */
     MessageSizeEstimator getMessageSizeEstimator();
 
     /**
-     * Set the {@link MessageSizeEstimator} which is used for the channel
-     * to detect the size of a message.
+     * Set the {@link MessageSizeEstimator} which is used for the channel to detect the size of a message.
+     * 设置消息大小 评估器
      */
     ChannelConfig setMessageSizeEstimator(MessageSizeEstimator estimator);
 
     /**
-     * Returns the {@link WriteBufferWaterMark} which is used for setting the high and low
-     * water mark of the write buffer.
+     * Returns the {@link WriteBufferWaterMark} which is used for setting the high and low water mark of the write buffer.
+     *
      */
     WriteBufferWaterMark getWriteBufferWaterMark();
 
     /**
-     * Set the {@link WriteBufferWaterMark} which is used for setting the high and low
-     * water mark of the write buffer.
+     * Set the {@link WriteBufferWaterMark} which is used for setting the high and low water mark of the write buffer.
+     * 设置缓冲对象的高水位线和低水位线
      */
     ChannelConfig setWriteBufferWaterMark(WriteBufferWaterMark writeBufferWaterMark);
 }

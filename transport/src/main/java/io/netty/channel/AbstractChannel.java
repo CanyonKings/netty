@@ -39,9 +39,9 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * A skeletal {@link Channel} implementation.
+ * channel 骨架实现
  */
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
-
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannel.class);
 
     private final Channel parent;
@@ -78,8 +78,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     /**
      * Creates a new instance.
      *
-     * @param parent
-     *        the parent of this channel. {@code null} if there's no parent.
+     * @param parent the parent of this channel.
+     * {@code null} if there's no parent.
      */
     protected AbstractChannel(Channel parent, ChannelId id) {
         this.parent = parent;
@@ -204,14 +204,6 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
         return remoteAddress;
-    }
-
-    /**
-     * @deprecated no use-case for this.
-     */
-    @Deprecated
-    protected void invalidateRemoteAddress() {
-        remoteAddress = null;
     }
 
     @Override

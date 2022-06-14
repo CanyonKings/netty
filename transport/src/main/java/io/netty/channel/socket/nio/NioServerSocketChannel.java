@@ -42,8 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
- * NIO selector based implementation to accept new connections.
+ * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses NIO selector based implementation to accept new connections.
  */
 public class NioServerSocketChannel extends AbstractNioMessageChannel implements io.netty.channel.socket.ServerSocketChannel {
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
@@ -172,8 +171,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel implements
 
     // Unnecessary stuff
     @Override
-    protected boolean doConnect(
-            SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
+    protected boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception {
         throw new UnsupportedOperationException();
     }
 

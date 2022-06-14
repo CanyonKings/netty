@@ -47,8 +47,7 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class AbstractNioChannel extends AbstractChannel {
 
-    private static final InternalLogger logger =
-            InternalLoggerFactory.getInstance(AbstractNioChannel.class);
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
     private final SelectableChannel ch;
     protected final int readInterestOp;
@@ -86,8 +85,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             try {
                 ch.close();
             } catch (IOException e2) {
-                logger.warn(
-                            "Failed to close a partially initialized socket.", e2);
+                logger.warn("Failed to close a partially initialized socket.", e2);
             }
 
             throw new ChannelException("Failed to enter non-blocking mode.", e);
