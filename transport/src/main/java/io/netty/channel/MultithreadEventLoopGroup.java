@@ -36,9 +36,14 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     private static final int DEFAULT_EVENT_LOOP_THREADS;
 
+    //todo 当MultithreadEventLoopGroup被加载进JVM就会执行，对DEFAULT_EVENT_LOOP_THREADS进行初始化
     static {
-        DEFAULT_EVENT_LOOP_THREADS = Math.max(1, SystemPropertyUtil.getInt(
-                "io.netty.eventLoopThreads", NettyRuntime.availableProcessors() * 2));
+        //todo max方法取最大值,
+        //todo SystemPropertyUtil.getInt,这是个系统辅助类, 如果系统中有io.netty.eventLoopThreads参数就取它，没有的话取后面的值
+        //todo NettyRuntime.availableProcessors() 获取处理器线程数量，在我的电脑上 16条线程（4核16线程）
+        DEFAULT_EVENT_LOOP_THREADS = Math.max(1,
+                SystemPropertyUtil.getInt("io.netty.eventLoopThreads",
+                NettyRuntime.availableProcessors() * 2));
 
         if (logger.isDebugEnabled()) {
             logger.debug("-Dio.netty.eventLoopThreads: {}", DEFAULT_EVENT_LOOP_THREADS);
@@ -48,6 +53,8 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
     /**
      * @see MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor, Object...)
      */
+    //todo 接着使用父类的构造方法，nThreads=DEFAULT_EVENT_LOOP_THREADS
+    //todo Object... args  是 selectorProvider，selectStrategyFactory，RejectedExecutionHandlers.reject()的简写
     protected MultithreadEventLoopGroup(int nThreads, Executor executor, Object... args) {
         super(nThreads == 0 ? DEFAULT_EVENT_LOOP_THREADS : nThreads, executor, args);
     }

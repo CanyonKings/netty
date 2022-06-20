@@ -50,9 +50,9 @@ public final class EchoServer {
         }
 
         // Configure the server.
+        EventLoopGroup boss = new NioEventLoopGroup(1);
         EventLoopGroup work = new NioEventLoopGroup();
-        EventLoopGroup boss = new NioEventLoopGroup();
-        
+
         final EchoServerHandler serverHandler = new EchoServerHandler();
         try {
             ServerBootstrap bootstrap = new ServerBootstrap();

@@ -77,9 +77,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     /**
      * Creates a new instance.
-     *
-     * @param parent
-     *        the parent of this channel. {@code null} if there's no parent.
+     * @param parent the parent of this channel.
+     * {@code null} if there's no parent.
      */
     protected AbstractChannel(Channel parent, ChannelId id) {
         this.parent = parent;
@@ -106,7 +105,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     }
 
     /**
-     * Returns a new {@link DefaultChannelId} instance. Subclasses may override this method to assign custom
+     * Returns a new {@link DefaultChannelId} instance.
+     * Subclasses may override this method to assign custom
      * {@link ChannelId}s to {@link Channel}s that use the {@link AbstractChannel#AbstractChannel(Channel)} constructor.
      */
     protected ChannelId newId() {
@@ -474,12 +474,23 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            //todo 赋值给自己的事件循环，把当前的eventLoop赋值给当前的Channel上，作用是标记后续的所有注册的操作都得交给我这个eventLoop处理，正好对应着下面的判断
+            //todo 保证了即便是在多线程的环境下一条channel，也只能注册关联上唯一的eventLoop,唯一的线程
             AbstractChannel.this.eventLoop = eventLoop;
 
+            //todo 下面的分支判断里面执行的代码是一样的!!, 为什么? 这是netty的重点, 它大量的使用线程, 线程之间就会产生同步和并发的问题
+            //todo 下面的分支,目的就是把线程可能带来的问题降到最低限度
+            //todo 进入inEventLoop() --> 判断当前执行这行代码的线程是否就是 SingleThreadEventExecutor里面维护的那条唯一的线程
+            //todo 解释下面分支的必要性, 一个eventLoop可以注册多个channel, 但是channel的整个生命周期中所有的IO事件,仅仅和它关联上的thread有关系
+            //todo 而且,一个eventLoop在他的整个生命周期中,只和唯一的线程进行绑定,
+            //todo 当我们注册channel的时候就得确保给他专属它的thread,
+            //todo 如果是新的连接到了,
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
+                    //todo 如果不是,它以一个任务的形式提交事件循环，新的任务在新的线程开始，规避了多线程的并发
+                    //todo 他是SimpleThreadEventExucutor中execute()实现的,把任务添加到执行队列执行
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -505,26 +516,39 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                //todo 进入这个方法doRegister()
+                //todo 它把系统创建的ServerSocketChannel 注册进了选择器
                 doRegister();
                 neverRegistered = false;
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                //todo 确保在 notify the promise前调用 handlerAdded(...)
+                //todo 这是必需的，因为用户可能已经通过ChannelFutureListener中的管道触发了事件。
+                //todo 如果需要的话,执行HandlerAdded()方法
+                //todo 正是这个方法, 回调了前面我们添加 Initializer 中添加 Accpter的重要方法
                 pipeline.invokeHandlerAddedIfNeeded();
 
+                //todo  !!!!!!!  观察者模式!!!!!!  通知观察者,谁是观察者?  暂时理解ChannelHandler 是观察者
                 safeSetSuccess(promise);
+                //todo 传播行为, 传播什么行为呢?在head---> ServerBootStraptAccptor ---> tail传播事件ChannelRegistered，也就是挨个调用它们的ChannelRegisted函数
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
+
+                //todo 对于服务端:  javaChannel().socket().isBound(); 即  当Channel绑定上了端口   isActive()才会返回true
+                //todo 对于客户端的连接 ch.isOpen() && ch.isConnected(); 返回true , 就是说, Channel是open的 打开状态的就是true
                 if (isActive()) {
                     if (firstRegistration) {
+                        //todo 在pipeline中传播ChannelActive的行为,跟进去
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
                         // again so that we process inbound data.
                         //
                         // See https://github.com/netty/netty/issues/4805
+                        //todo 可以接受客户端的数据了
                         beginRead();
                     }
                 }
@@ -558,16 +582,24 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             boolean wasActive = isActive();
+            //todo 由于端口的绑定未完成，所以 wasActive是 false
             try {
+                //todo 绑定端口, 进去就是NIO原生JDK绑定端口的代码
                 doBind(localAddress);
+                //todo 端口绑定完成  isActive（）是true
             } catch (Throwable t) {
                 safeSetFailure(promise, t);
                 closeIfClosed();
                 return;
             }
 
+            //todo 根据上面的逻辑判断， 结果为 true
             if (!wasActive && isActive()) {
                 invokeLater(new Runnable() {
+
+                    //todo 来到这里很重要， 向下传递事件行为， 传播行为的时候， 从管道的第一个节点开始传播， 第一个节点被封装成 HeadContext的对象
+                    //todo 进入方法， 去 HeadContext里面查看做了哪些事情
+                    //todo 她会触发channel的read, 最终重新为 已经注册进selector 的 chanel, 二次注册添加上感性趣的accept事件
                     @Override
                     public void run() {
                         pipeline.fireChannelActive();
@@ -575,6 +607,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 });
             }
 
+            //todo 观察者模式, 设置改变状态, 通知观察者的方法回调
             safeSetSuccess(promise);
         }
 
@@ -1095,8 +1128,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     protected abstract void doClose() throws Exception;
 
     /**
-     * Called when conditions justify shutting down the output portion of the channel. This may happen if a write
-     * operation throws an exception.
+     * Called when conditions justify shutting down the output portion of the channel.
+     * This may happen if a write operation throws an exception.
      */
     @UnstableApi
     protected void doShutdownOutput() throws Exception {

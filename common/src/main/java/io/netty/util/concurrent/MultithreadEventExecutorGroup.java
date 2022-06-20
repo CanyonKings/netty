@@ -68,11 +68,18 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
      * @param chooserFactory    the {@link EventExecutorChooserFactory} to use.
      * @param args              arguments which will passed to each {@link #newChild(Executor, Object...)} call
      */
+    //todo 在这个构造方法中，完成了一些属性的赋值，彻底构造完成事件循环组对象
+    //todo Object... args 是selectorProvider，selectStrategyFactory,
     protected MultithreadEventExecutorGroup(int nThreads, Executor executor,
                                             EventExecutorChooserFactory chooserFactory, Object... args) {
         checkPositive(nThreads, "nThreads");
 
         if (executor == null) {
+            //todo 下面需要的参数，一开始使用无参的构造方法时，传递进来的就是null，执行这一行代码，创建默认的线程工厂
+            //todo ThreadPerTaskExecutor意味为当前的事件循环组创建Executor，用于针对每一个任务的Executor线程的执行器
+            //todo newDefaultThreadFactory根据它的特性，可以给线程加名字等，比传统的好处是把创建线程和定义线程需要做的任务分开，我们只关心任务，两者解耦
+            //todo 每次执行任务都会创建一个线程实体
+            //todo NioEventLoop线程命名规则nioEventLoop-1-XX，1代表是第几个group，XX第几个eventLoop
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
@@ -81,10 +88,11 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+                //todo 创建EventLoop
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
-                // TODO: Think about if this is a good exception type
+                // TODO: Think about if this . a good exception type
                 throw new IllegalStateException("failed to create a child event loop", e);
             } finally {
                 if (!success) {
@@ -108,6 +116,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             }
         }
 
+        //todo chooser 在这里初始化了
         chooser = chooserFactory.newChooser(children);
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {

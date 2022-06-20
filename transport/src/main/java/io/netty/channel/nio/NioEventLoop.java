@@ -139,20 +139,29 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private int cancelledKeys;
     private boolean needsToSelectAgain;
 
+    //todo 这里是它的构造方法
     NioEventLoop(NioEventLoopGroup parent, Executor executor, SelectorProvider selectorProvider,
                  SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler,
                  EventLoopTaskQueueFactory taskQueueFactory, EventLoopTaskQueueFactory tailTaskQueueFactory) {
+
+        //todo 进入到父类，着重看他是如何创建出TaskQueue的
         super(parent, executor, false, newTaskQueue(taskQueueFactory), newTaskQueue(tailTaskQueueFactory),
                 rejectedExecutionHandler);
+        //todo 常用的属性
         this.provider = ObjectUtil.checkNotNull(selectorProvider, "selectorProvider");
         this.selectStrategy = ObjectUtil.checkNotNull(strategy, "selectStrategy");
+
+        //todo 获取Selector选择器
         final SelectorTuple selectorTuple = openSelector();
+
+        //todo SelectorTuple是netty维护jdk原生的Selector的包装类下面看，他有两个Selector，一个是经过包装的，一个是未经过包装的
         this.selector = selectorTuple.selector;
+
+        //todo Jdk原生的Selector
         this.unwrappedSelector = selectorTuple.unwrappedSelector;
     }
 
-    private static Queue<Runnable> newTaskQueue(
-            EventLoopTaskQueueFactory queueFactory) {
+    private static Queue<Runnable> newTaskQueue(EventLoopTaskQueueFactory queueFactory) {
         if (queueFactory == null) {
             return newTaskQueue0(DEFAULT_MAX_PENDING_TASKS);
         }
@@ -174,14 +183,18 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    //todo 这里进行了 优化, netty把hashSet转换成了数组, 因为在JDK的NIO模型中,获取Selector时, Selector里面内置的存放SelectionKey的容器是Ｓｅｔ集合
+    //todo 而netty把它替换成了自己的数据结构, 数组, 从而使在任何情况下, 它的时间复杂度都是 O1
     private SelectorTuple openSelector() {
         final Selector unwrappedSelector;
         try {
+            //todo 使用jdk的api创建新的 selector
             unwrappedSelector = provider.openSelector();
         } catch (IOException e) {
             throw new ChannelException("failed to open a new selector", e);
         }
 
+        //todo 如果不需要优化就返回原生的selector，默认为false即使用优化
         if (DISABLE_KEY_SET_OPTIMIZATION) {
             return new SelectorTuple(unwrappedSelector);
         }
@@ -190,6 +203,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             @Override
             public Object run() {
                 try {
+                    //todo 通过反射 sun.nio.ch.SelectorImpl或者这个类
                     return Class.forName(
                             "sun.nio.ch.SelectorImpl",
                             false,
@@ -200,6 +214,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
         });
 
+        //todo 判断是否获取到了这个类
         if (!(maybeSelectorImplClass instanceof Class) ||
             // ensure the current selector implementation is what we can instrument.
             !((Class<?>) maybeSelectorImplClass).isAssignableFrom(unwrappedSelector.getClass())) {
@@ -210,13 +225,18 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             return new SelectorTuple(unwrappedSelector);
         }
 
+        //todo 确定是Selector的实现类换了个名字
         final Class<?> selectorImplClass = (Class<?>) maybeSelectorImplClass;
         final SelectedSelectionKeySet selectedKeySet = new SelectedSelectionKeySet();
 
+         //todo 类java.security.AccessController提供了一个默认的安全策略执行机制，它使用栈检查来决定潜在不安全的操作是否被允许。
+         //todo 这个访问控制器不能被实例化，它不是一个对象，而是集合在单个类中的多个静态方法。
         Object maybeException = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
                 try {
+                    //todo 通过反射获取到selectorImplClass的两个字段selectedKeys和publicSelectedKeys
+                    //todo selectedKeys与publicSelectedKeys底层都是hashSet()实现的，现在获取出来了，放入上面的数组数据结构中
                     Field selectedKeysField = selectorImplClass.getDeclaredField("selectedKeys");
                     Field publicSelectedKeysField = selectorImplClass.getDeclaredField("publicSelectedKeys");
 
@@ -237,15 +257,19 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // We could not retrieve the offset, lets try reflection as last-resort.
                     }
 
+                    //todo trySetAccessible 可以强制访问私有的对象
                     Throwable cause = ReflectionUtil.trySetAccessible(selectedKeysField, true);
                     if (cause != null) {
                         return cause;
                     }
+                    //todo trySetAccessible 可以强制访问私有的对象
                     cause = ReflectionUtil.trySetAccessible(publicSelectedKeysField, true);
                     if (cause != null) {
                         return cause;
                     }
 
+                    //todo 真正的把通过反射得到的那两个字段放入我们自己的数据结构中
+                    //todo 面是把我们的NioEventLoop中的unwrappedSelector的selectedKeysField的属性，直接设置成优化后的selectedKeySet
                     selectedKeysField.set(unwrappedSelector, selectedKeySet);
                     publicSelectedKeysField.set(unwrappedSelector, selectedKeySet);
                     return null;
@@ -263,6 +287,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             logger.trace("failed to instrument a special java.util.Set into: {}", unwrappedSelector, e);
             return new SelectorTuple(unwrappedSelector);
         }
+        //todo 初始化自己维护被选中的key的集合  --> 数组类型的
         selectedKeys = selectedKeySet;
         logger.trace("instrumented a special java.util.Set into: {}", unwrappedSelector);
         return new SelectorTuple(unwrappedSelector,
@@ -438,6 +463,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+     //todo select()检查是否有IO事件
+     //todo ProcessorSelectedKeys()处理IO事件
+     //todo RunAllTask()处理异步任务队列
     @Override
     protected void run() {
         int selectCnt = 0;
@@ -454,6 +482,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
                     case SelectStrategy.SELECT:
+                        //todo 轮询IO事件等待事件的发生，本方法下面的代码是处理接受到的感性趣的事件，进入查看本方法
                         long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
                         if (curDeadlineNanos == -1L) {
                             curDeadlineNanos = NONE; // nothing on the calendar
@@ -483,23 +512,29 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 selectCnt++;
                 cancelledKeys = 0;
                 needsToSelectAgain = false;
-                final int ioRatio = this.ioRatio;
+                final int ioRatio = this.ioRatio;//todo 默认50
                 boolean ranTasks;
+                //todo 如果ioRatio==100就调用第一个processSelectedKeys();否则就调用第二个
                 if (ioRatio == 100) {
                     try {
                         if (strategy > 0) {
+                            //todo 处理 处理发生的感性趣的事件
                             processSelectedKeys();
                         }
                     } finally {
                         // Ensure we always run tasks.
+                        //todo 用于处理本eventLoop外的线程扔到taskQueue中的任务
                         ranTasks = runAllTasks();
                     }
-                } else if (strategy > 0) {
+                } else if (strategy > 0) {//todo 因为ioRatio默认是50所以来else
+                    //todo 记录下开始的时间
                     final long ioStartTime = System.nanoTime();
                     try {
+                        //todo 处理IO事件
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
+                        //todo 根据处理IO事件耗时，控制下面的runAllTasks执行任务不能超过ioTime时间
                         final long ioTime = System.nanoTime() - ioStartTime;
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
@@ -584,6 +619,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private void processSelectedKeys() {
+        //todo selectedKeys就是经过优化后的keys(底层是数组)
         if (selectedKeys != null) {
             processSelectedKeysOptimized();
         } else {
@@ -653,19 +689,23 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         for (int i = 0; i < selectedKeys.size; ++i) {
             final SelectionKey k = selectedKeys.keys[i];
             // null out entry in the array to allow to have it GC'ed once the Channel close
+            //todo 数组输出空项，从而允许在channel关闭时对其进行垃圾回收
             // See https://github.com/netty/netty/issues/2363
+            //todo 数组中当前循环对应的keys质空，这种感兴趣的事件只处理一次就行
             selectedKeys.keys[i] = null;
 
+            //todo 获取出attachment，默认情况下就是注册进Selector时，传入的第三个参数  this===>   NioServerSocketChannel
+            //todo 一个Selector中可能被绑定上了成千上万个Channel，通过K+attachment的手段，精确的取出发生指定事件的channel，进而获取channel中的unsafe类进行下一步处理
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
+                //todo 进入这个方法传进入感兴趣的key + NioSocketChannel
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
                 @SuppressWarnings("unchecked")
                 NioTask<SelectableChannel> task = (NioTask<SelectableChannel>) a;
                 processSelectedKey(k, task);
             }
-
             if (needsToSelectAgain) {
                 // null out entries in the array to allow to have it GC'ed once the Channel close
                 // See https://github.com/netty/netty/issues/2363
@@ -678,6 +718,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
+        //todo 这个unsafe也是可channel也是和Channel进行唯一绑定的对象
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
         if (!k.isValid()) {
             final EventLoop eventLoop;
@@ -700,10 +741,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             return;
         }
 
+        //todo NioServerSocketChannel和selectKey都合法的话就进入下面的处理阶段
         try {
+            //todo 获取SelectedKey的关心的选项
             int readyOps = k.readyOps();
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
+            //todo 在read()write()之前我们需要调用 finishConnect()方法，否则NIO JDK抛出异常
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
                 // remove OP_CONNECT as otherwise Selector.select(..) will always return without blocking
                 // See https://github.com/netty/netty/issues/924
@@ -722,6 +766,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
             // Also check for readOps of 0 to workaround possible JDK bug which may otherwise lead
             // to a spin loop
+            //todo 同样是检查readOps是否为零，来检查是否出现了jdk空轮询的bug
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
                 unsafe.read();
             }

@@ -123,15 +123,18 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
      * Return the {@link Runnable} which is ready to be executed with the given {@code nanoTime}.
      * You should use {@link #nanoTime()} to retrieve the correct {@code nanoTime}.
      */
+    //todo  根据给定的纳秒值,返回 Runable定时任务 , 并且,每次使用都要冲洗使用是nanoTime() 来矫正时间
     protected final Runnable pollScheduledTask(long nanoTime) {
         assert inEventLoop();
 
         ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
         if (scheduledTask == null || scheduledTask.deadlineNanos() - nanoTime > 0) {
+            // todo 否则返回kong,表示当前所有的定时任务都没到期, 没有可以执行的
             return null;
         }
         scheduledTaskQueue.remove();
         scheduledTask.setConsumed();
+        // todo 如果定时任务的截止时间<= 我们穿进来的时间, 就把他返回
         return scheduledTask;
     }
 

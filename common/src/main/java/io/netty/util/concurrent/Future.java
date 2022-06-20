@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
  * The result of an asynchronous operation.
  * 异步操作的结果。
  */
+//todo 这个接口继承了 java并发包总的Futrue，并在其基础上增加了很多方法
+//todo Future表示对未来任务的封装
 @SuppressWarnings("ClassNameSameAsAncestorName")
 public interface Future<V> extends java.util.concurrent.Future<V> {
 
@@ -30,12 +32,14 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * Returns {@code true} if and only if the I/O operation was completed successfully.
      * 当且仅当 i/o 操作成功完成时，返回true
      */
+    //todo 判断IO是否成功返回
     boolean isSuccess();
 
     /**
      * returns {@code true} if and only if the operation can be cancelled via {@link #cancel(boolean)}.
      * 当且仅当可以通过cancel撤销时，返回true
      */
+    //todo 判断是否是 cancel()方法取消
     boolean isCancellable();
 
     /**
@@ -47,6 +51,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * {@code null} if succeeded or this future is not completed yet.
      * 如果成功，或者这个未来尚未完成返回null。
      */
+    //todo 返回IO 操作失败的原因
     Throwable cause();
 
     /**
@@ -58,6 +63,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * If this future is already completed, the specified listener is notified immediately.
      * 如果这个future已经完成，则立即通知指定的侦听器。
      */
+    //todo 使用了观察者设计模式, 给这个future添加监听器, 一旦Future 完成, listenner 立即被通知
     Future<V> addListener(GenericFutureListener<? extends Future<? super V>> listener);
 
     /**
@@ -66,6 +72,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * The specified listeners are notified when this future is {@linkplain #isDone() done}.
      * If this future is already completed, the specified listeners are notified immediately.
      */
+    //todo 添加多个listenner
     Future<V> addListeners(GenericFutureListener<? extends Future<? super V>>... listeners);
 
     /**
@@ -91,11 +98,14 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * Waits for this future until it is done, and rethrows the cause of the failure if this future failed.
      * 同步等待这个future，直到它完成，并在这个future失败时抛出失败的原因。
      */
+    //todo sync(同步) 等待着 future 的完成, 并且,一旦future失败了,就会抛出 future 失败的原因
+    //todo bind()是个异步操作,我们需要同步等待他执行成功
     Future<V> sync() throws InterruptedException;
 
     /**
      * Waits for this future until it is done, and rethrows the cause of the failure if this future failed.
      */
+    //todo 不会被中断的 sync等待
     Future<V> syncUninterruptibly();
 
     /**
@@ -104,6 +114,7 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * @throws InterruptedException if the current thread was interrupted
      * 如果当前线程被中断就抛出中断异常
      */
+    //todo 等待
     Future<V> await() throws InterruptedException;
 
     /**
@@ -163,6 +174,8 @@ public interface Future<V> extends java.util.concurrent.Future<V> {
      * if the future is really done with {@link #isDone()} and not rely on the returned {@code null} value.
      * 因为有可能使用null值来标记future是成功的，所以您还需要检查future是否真的用isdone完成，而不是依赖返回的null值。
      */
+    //todo 无阻塞的返回Future对象, 如果没有,返回null
+    //todo 有时future成功执行后返回值为null，这是null就是成功的标识，如 Runable就没有返回值，因此文档建议还要 通过isDone() 判断一下真的完成了吗
     V getNow();
 
     /**

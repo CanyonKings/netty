@@ -168,7 +168,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         super(parent);
         this.addTaskWakesUp = addTaskWakesUp;
         this.maxPendingTasks = DEFAULT_MAX_PENDING_EXECUTOR_TASKS;
+        //todo 保存线程执行器
         this.executor = ThreadExecutorMap.apply(executor, this);
+        //todo 任务队列，进入查看
         this.taskQueue = ObjectUtil.checkNotNull(taskQueue, "taskQueue");
         this.rejectedExecutionHandler = ObjectUtil.checkNotNull(rejectedHandler, "rejectedHandler");
     }
@@ -280,14 +282,21 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (scheduledTaskQueue == null || scheduledTaskQueue.isEmpty()) {
             return true;
         }
+        //todo 拉取第一个聚合任务
         long nanoTime = AbstractScheduledEventExecutor.nanoTime();
+
+        //todo 从任务丢列中取出截止时间是 nanoTime的定时任务 ,
+        //todo 往定时队列中添加ScheduledFutureTask任务, 排序的基准是 ScheduledFutureTask 的compare方法,按照时间,从小到大
+        //todo 于是当我们发现队列中的第一个任务,也就是截止时间最近的任务的截止时间比我们的
         for (;;) {
             Runnable scheduledTask = pollScheduledTask(nanoTime);
             if (scheduledTask == null) {
                 return true;
             }
+            // todo scheduledTask != null表示定时任务该被执行了, 于是将定时任务添加到 普通任务队列
             if (!taskQueue.offer(scheduledTask)) {
                 // No space left in the task queue add it back to the scheduledTaskQueue so we pick it up again.
+                // todo 如果添加失败了, 把这个任务从新放入到定时任务队列中, 再尝试添加
                 scheduledTaskQueue.add((ScheduledFutureTask<?>) scheduledTask);
                 return false;
             }
@@ -456,23 +465,31 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * the tasks in the task queue and returns if it ran longer than {@code timeoutNanos}.
      */
     protected boolean runAllTasks(long timeoutNanos) {
+        //todo 聚合任务，会把定时任务放入普通的任务队列中进入查看
         fetchFromScheduledTaskQueue();
+
+        //todo 从普通的队列中拿出一个任务
         Runnable task = pollTask();
         if (task == null) {
             afterRunningAllTasks();
             return false;
         }
 
+        //todo 计算截止时间，表示任务的执行，最好别超过这个时间
         final long deadline = timeoutNanos > 0 ? ScheduledFutureTask.nanoTime() + timeoutNanos : 0;
         long runTasks = 0;
         long lastExecutionTime;
+
+        //todo for循环执行任务
         for (;;) {
+            //todo 执行任务，方法里调用task.run();
             safeExecute(task);
 
             runTasks ++;
 
             // Check timeout every 64 tasks because nanoTime() is relatively expensive.
             // XXX: Hard-coded value - will make it configurable if it is really a problem.
+            //todo 因为nanoTime();的执行也是个相对耗时的操作，因此没执行完64个任务后检查有没有超时
             if ((runTasks & 0x3F) == 0) {
                 lastExecutionTime = ScheduledFutureTask.nanoTime();
                 if (lastExecutionTime >= deadline) {
@@ -480,6 +497,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 }
             }
 
+            //todo 拿新的任务
             task = pollTask();
             if (task == null) {
                 lastExecutionTime = ScheduledFutureTask.nanoTime();
@@ -487,6 +505,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             }
         }
 
+        //todo 每个任务执行结束都有个收尾的构造
         afterRunningAllTasks();
         this.lastExecutionTime = lastExecutionTime;
         return true;
@@ -829,10 +848,20 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         execute(ObjectUtil.checkNotNull(task, "task"), false);
     }
 
+    //todo eventLoop事件循环里面的task，会在本类SingleThreadEventExecutor里面: execute() 执行
     private void execute(Runnable task, boolean immediate) {
+        //todo 同样判断当前线程是不是eventLoop里面的那条唯一的线程，如果是就把当前任务放到任务队列里面等着当前的线程执行
+        //todo 不是的话就开启新的线程去执行这个新的任务
+        //todo eventLoop一生只会绑定一个线程，服务器启动时只有一条主线程，一直都是在做初始化的工作，并没有任何一次start()
+        //todo 所以走的是else
+        //todo 在else中首先开启新的线程而后把任务添加进去
+
         boolean inEventLoop = inEventLoop();
+
+        //todo 把任务丢进队列
         addTask(task);
         if (!inEventLoop) {
+            //todo 开启线程进入查看
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
@@ -977,9 +1006,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void doStartThread() {
         assert thread == null;
+        //todo 断言线程为空，然后才创建新的线程
         executor.execute(new Runnable() {
+            //todo 每次Execute都是在使用默认的线程工厂创建一个线程并执行Runable里面的任务
             @Override
             public void run() {
+                //todo 获取刚才创建出来的线程，保存在NioEventLoop中的thread变量里面，这里其实就是在进行那个唯一的绑定
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();
@@ -988,6 +1020,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
+                    //todo 实际启动线程到这里NioEventLoop就启动完成了
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {

@@ -100,6 +100,9 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
     public NioEventLoopGroup(int nThreads, Executor executor, final SelectorProvider selectorProvider,
                              final SelectStrategyFactory selectStrategyFactory) {
+        //todo  线程数量  执行器   选择器provider               选择器策略
+        //todo  0       null    根据系统选出 nioXXXprovider    默认的选择策略
+        //todo 调用父类的构造方法即MultithreadEventLoopGroup，多线程的事件循环组
         super(nThreads, executor, selectorProvider, selectStrategyFactory, RejectedExecutionHandlers.reject());
     }
 
@@ -172,10 +175,15 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
     @Override
     protected EventLoop newChild(Executor executor, Object... args) throws Exception {
+
         SelectorProvider selectorProvider = (SelectorProvider) args[0];
+
         SelectStrategyFactory selectStrategyFactory = (SelectStrategyFactory) args[1];
+
         RejectedExecutionHandler rejectedExecutionHandler = (RejectedExecutionHandler) args[2];
+
         EventLoopTaskQueueFactory taskQueueFactory = null;
+
         EventLoopTaskQueueFactory tailTaskQueueFactory = null;
 
         int argsLength = args.length;
@@ -185,6 +193,8 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         if (argsLength > 4) {
             tailTaskQueueFactory = (EventLoopTaskQueueFactory) args[4];
         }
+
+        //todo !! 真正创建事件循环组的逻辑在这里!!!
         return new NioEventLoop(this, executor, selectorProvider,
                 selectStrategyFactory.newSelectStrategy(),
                 rejectedExecutionHandler, taskQueueFactory, tailTaskQueueFactory);
