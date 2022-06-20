@@ -85,6 +85,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
     /**
      * Returns the parent of this channel.
      * 返回父级Channel
+     *
      * @return the parent channel.
      * {@code null} if this channel does not have a parent channel.
      * 返回null说明当前Channel没有父级Channel

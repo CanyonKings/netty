@@ -20,8 +20,8 @@ import io.netty.util.IntSupplier;
 /**
  * Select strategy interface.
  *
- * Provides the ability to control the behavior of the select loop. For example a blocking select
- * operation can be delayed or skipped entirely if there are events to process immediately.
+ * Provides the ability to control the behavior of the select loop.
+ * For example a blocking select operation can be delayed or skipped entirely if there are events to process immediately.
  */
 public interface SelectStrategy {
 

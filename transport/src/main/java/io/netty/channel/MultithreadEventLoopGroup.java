@@ -53,8 +53,6 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
     /**
      * @see MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor, Object...)
      */
-    //todo 接着使用父类的构造方法，nThreads=DEFAULT_EVENT_LOOP_THREADS
-    //todo Object... args  是 selectorProvider，selectStrategyFactory，RejectedExecutionHandlers.reject()的简写
     protected MultithreadEventLoopGroup(int nThreads, Executor executor, Object... args) {
         super(nThreads == 0 ? DEFAULT_EVENT_LOOP_THREADS : nThreads, executor, args);
     }
