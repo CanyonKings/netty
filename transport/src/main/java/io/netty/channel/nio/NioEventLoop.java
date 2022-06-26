@@ -59,7 +59,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
     // 清理间隔
-    private static final int CLEANUP_INTERVAL = 256; // XXX Hard-coded value, but won't need customization.
+    // XXX Hard-coded value, but won't need customization.
+    //     硬编码值，但不需要定制。
+    private static final int CLEANUP_INTERVAL = 256;
 
     // 禁止设置最优化
     private static final boolean DISABLE_KEY_SET_OPTIMIZATION =
@@ -144,7 +146,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                  SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler,
                  EventLoopTaskQueueFactory taskQueueFactory, EventLoopTaskQueueFactory tailTaskQueueFactory) {
 
-        //todo 进入到父类，着重看他是如何创建出TaskQueue的
+        //todo 进入到父类，着重看他是如何创建出TaskQueue的，addTaskWekesUp默认为false,
         super(parent, executor, false, newTaskQueue(taskQueueFactory), newTaskQueue(tailTaskQueueFactory),
                 rejectedExecutionHandler);
         //todo 常用的属性

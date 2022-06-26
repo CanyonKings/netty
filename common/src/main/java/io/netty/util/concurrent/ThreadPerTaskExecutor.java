@@ -29,7 +29,7 @@ public final class ThreadPerTaskExecutor implements Executor {
         this.threadFactory = ObjectUtil.checkNotNull(threadFactory, "threadFactory");
     }
 
-    //todo  必须实现Executor里面唯一的抽象方法execute，执行性任务
+    //todo 必须实现Executor里面唯一的抽象方法execute，执行性任务
     @Override
     public void execute(Runnable command) {
         threadFactory.newThread(command).start();

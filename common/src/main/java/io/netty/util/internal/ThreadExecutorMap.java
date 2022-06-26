@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  * Allow to retrieve the {@link EventExecutor} for the calling {@link Thread}.
+ * 允许检索调用线程的EventExecator。
  */
 public final class ThreadExecutorMap {
 
@@ -48,6 +49,7 @@ public final class ThreadExecutorMap {
      * Decorate the given {@link Executor} and ensure {@link #currentExecutor()} will return {@code eventExecutor}
      * when called from within the {@link Runnable} during execution.
      */
+    //装饰给定的 Execator，并确保 currentExecator ()在执行期间从 Runnable 内部调用时返回 eventExecator。
     public static Executor apply(final Executor executor, final EventExecutor eventExecutor) {
         ObjectUtil.checkNotNull(executor, "executor");
         ObjectUtil.checkNotNull(eventExecutor, "eventExecutor");

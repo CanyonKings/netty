@@ -167,6 +167,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                                         RejectedExecutionHandler rejectedHandler) {
         super(parent);
         this.addTaskWakesUp = addTaskWakesUp;
+        //todo EvenLoop 最大呆处理任务数量
         this.maxPendingTasks = DEFAULT_MAX_PENDING_EXECUTOR_TASKS;
         //todo 保存线程执行器
         this.executor = ThreadExecutorMap.apply(executor, this);
@@ -293,10 +294,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             if (scheduledTask == null) {
                 return true;
             }
-            // todo scheduledTask != null表示定时任务该被执行了, 于是将定时任务添加到 普通任务队列
+            //todo scheduledTask != null表示定时任务该被执行了, 于是将定时任务添加到 普通任务队列
             if (!taskQueue.offer(scheduledTask)) {
                 // No space left in the task queue add it back to the scheduledTaskQueue so we pick it up again.
-                // todo 如果添加失败了, 把这个任务从新放入到定时任务队列中, 再尝试添加
+                //todo 如果添加失败了, 把这个任务从新放入到定时任务队列中, 再尝试添加
                 scheduledTaskQueue.add((ScheduledFutureTask<?>) scheduledTask);
                 return false;
             }

@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Default implementation which uses simple round-robin to choose next {@link EventExecutor}.
  */
+//todo 使用简单循环选择下一个EventExecator（即EvenLoop）的默认实现。
 @UnstableApi
 public final class DefaultEventExecutorChooserFactory implements EventExecutorChooserFactory {
 
@@ -59,8 +60,9 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
     private static final class GenericEventExecutorChooser implements EventExecutorChooser {
         // Use a 'long' counter to avoid non-round-robin behaviour at the 32-bit overflow boundary.
-        // The 64-bit long solves this by placing the overflow so far into the future, that no system
-        // will encounter this in practice.
+        // 使用“长”计数器可以避免在32位溢出边界处的非循环行为。
+        // The 64-bit long solves this by placing the overflow so far into the future, that no system will encounter this in practice.
+        // 64位 long 解决了这个问题，它将溢出放置到很远的未来，以至于没有系统会在实践中遇到这种情况。
         private final AtomicLong idx = new AtomicLong();
         private final EventExecutor[] executors;
 

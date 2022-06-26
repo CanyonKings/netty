@@ -28,6 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
+ *
+ * 想要支持调度的EventExecator的抽象基类
+ *
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
     private static final Comparator<ScheduledFutureTask<?>> SCHEDULED_FUTURE_TASK_COMPARATOR =
@@ -129,12 +132,12 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
 
         ScheduledFutureTask<?> scheduledTask = peekScheduledTask();
         if (scheduledTask == null || scheduledTask.deadlineNanos() - nanoTime > 0) {
-            // todo 否则返回kong,表示当前所有的定时任务都没到期, 没有可以执行的
+            //todo 否则返回kong,表示当前所有的定时任务都没到期, 没有可以执行的
             return null;
         }
         scheduledTaskQueue.remove();
         scheduledTask.setConsumed();
-        // todo 如果定时任务的截止时间<= 我们穿进来的时间, 就把他返回
+        //todo 如果定时任务的截止时间<= 我们穿进来的时间, 就把他返回
         return scheduledTask;
     }
 

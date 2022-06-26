@@ -28,6 +28,7 @@ import java.util.Map;
  * Exposes the configuration of a {@link ServerBootstrapConfig}.
  *
  */
+// todo  暴露ServerBootstrapConfig 的配置类信息
 public final class ServerBootstrapConfig extends AbstractBootstrapConfig<ServerBootstrap, ServerChannel> {
 
     ServerBootstrapConfig(ServerBootstrap bootstrap) {
@@ -38,6 +39,7 @@ public final class ServerBootstrapConfig extends AbstractBootstrapConfig<ServerB
      * Returns the configured {@link EventLoopGroup} which will be used for the child channels or {@code null}
      * if non is configured yet.
      */
+    // todo 返回事件循环组, childGruop
     @SuppressWarnings("deprecation")
     public EventLoopGroup childGroup() {
         return bootstrap.childGroup();

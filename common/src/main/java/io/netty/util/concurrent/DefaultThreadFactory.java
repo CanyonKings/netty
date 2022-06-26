@@ -25,14 +25,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ThreadFactory} implementation with a simple naming rule.
+ *
+ * 具有简单命名规则的ThreadFactory实现。
  */
 public class DefaultThreadFactory implements ThreadFactory {
 
     private static final AtomicInteger poolId = new AtomicInteger();
 
     private final AtomicInteger nextId = new AtomicInteger();
+
+    // 前缀
     private final String prefix;
     private final boolean daemon;
+
+    // 优先级
     private final int priority;
     protected final ThreadGroup threadGroup;
 

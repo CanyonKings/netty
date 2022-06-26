@@ -78,11 +78,11 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             //todo 下面需要的参数，一开始使用无参的构造方法时，传递进来的就是null，执行这一行代码，创建默认的线程工厂
             //todo ThreadPerTaskExecutor意味为当前的事件循环组创建Executor，用于针对每一个任务的Executor线程的执行器
             //todo newDefaultThreadFactory根据它的特性，可以给线程加名字等，比传统的好处是把创建线程和定义线程需要做的任务分开，我们只关心任务，两者解耦
-            //todo 每次执行任务都会创建一个线程实体
-            //todo NioEventLoop线程命名规则nioEventLoop-1-XX，1代表是第几个group，XX第几个eventLoop
+            //todo 每次执行任务都会创建一个线程实体，NioEventLoop线程命名规则nioEventLoop-1-XX，1代表是第几个group，XX第几个eventLoop
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
+        //todo EvenLoop数组对象，EvenLoopGroup管理的事件组，EvenLoop创建后会反向应用EvenLoopGroup对象
         children = new EventExecutor[nThreads];
 
         for (int i = 0; i < nThreads; i ++) {

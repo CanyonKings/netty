@@ -35,30 +35,34 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 是一个帮助类
+ * AbstractBootstrap是一个助手类，它使引导Channel变得很容易。
  * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}.
  *
- * 它 支持 方法链 ， 提供 一个简单的方式 来配置 bootstrap
+ * 它支持方法链，提供一个简单的方式来配置bootstrap
  * It support method-chaining to provide an easy way to configure the {@link AbstractBootstrap}.
  *
  * <p>When not used in a {@link ServerBootstrap} context, the {@link #bind()} methods are useful for connectionless
  * transports such as datagram (UDP).</p>
+ *
+ * 当不在ServerBootstrap上下文中使用时，bind()方法对于无连接非常有用，数据报(datagram，UDP)等传输。
  */
+
+//todo B extends AbstractBootstrap<B, C> 表示, B是AbstractBootstrap的一个子类
+//todo C extends Channel 表示, C是Channel 的一个子类
+//todo 在ServerBootStrap中， 第一个参数就是 ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {。。。}
+//todo B === ServerBootstrap
 public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C extends Channel> implements Cloneable {
 
-    @SuppressWarnings("unchecked")
     private static final Map.Entry<ChannelOption<?>, Object>[] EMPTY_OPTION_ARRAY = new Map.Entry[0];
-    @SuppressWarnings("unchecked")
     private static final Map.Entry<AttributeKey<?>, Object>[] EMPTY_ATTRIBUTE_ARRAY = new Map.Entry[0];
 
     volatile EventLoopGroup group;
 
-    @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
     private volatile SocketAddress localAddress;
 
-    // The order in which ChannelOptions are applied is important they may depend on each other for validation
-    // purposes.
+    // The order in which ChannelOptions are applied is important they may depend on each other for validation purposes.
+    //todo ChannelOptions的应用顺序非常重要，它们可能相互依赖以进行验证。
     private final Map<ChannelOption<?>, Object> options = new LinkedHashMap<ChannelOption<?>, Object>();
     // attributeKey 的作用是什么
     private final Map<AttributeKey<?>, Object> attrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
@@ -85,6 +89,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
      * {@link Channel}
      */
+    //todo 这个事件循环组，被用于处理所有的将被创建的chanel
     public B group(EventLoopGroup group) {
         ObjectUtil.checkNotNull(group, "group");
         if (this.group != null) {
@@ -94,7 +99,6 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return self();
     }
 
-    @SuppressWarnings("unchecked")
     private B self() {
         return (B) this;
     }
@@ -106,7 +110,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      *
      * 设置要被实例化的Channel类
      */
+     //todo 返回值类型是B，因为是链式风格的调用，上面分析服务端 B == ServerBootStrap
+     //todo 接受的类型是C，上面分析，C是Channel类型的Class对象
+     //todo 使用channel()会创建一个ServerBootStrap对象，但是如果我们的B没有无参的构造方法，只能使用channelFactory()
     public B channel(Class<? extends C> channelClass) {
+        //todo 我们传递进来的 NioServerSocketChannel对象，赋值给了RegflectiveChannelFactory
         return channelFactory(new ReflectiveChannelFactory<C>(
                 ObjectUtil.checkNotNull(channelClass, "channelClass")
         ));
@@ -115,6 +123,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      *  Use {@link #channelFactory(io.netty.channel.ChannelFactory)} instead.
      */
+    //todo 当前方法已经废弃掉了，但是仍然是进来了
+    //todo 唯一的工作就是把刚才拥有NioserverSocketChannel.class的 RefletiveChannelFactory初始化了
+    @Deprecated
     public B channelFactory(ChannelFactory<? extends C> channelFactory) {
         ObjectUtil.checkNotNull(channelFactory, "channelFactory");
         if (this.channelFactory != null) {
@@ -155,8 +166,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got
-     * created. Use a value of {@code null} to remove a previous set {@link ChannelOption}.
+     * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they got created.
+     * Use a value of {@code null} to remove a previous set {@link ChannelOption}.
      */
     public <T> B option(ChannelOption<T> option, T value) {
         ObjectUtil.checkNotNull(option, "option");
@@ -230,6 +241,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * Create a new {@link Channel} and bind it.
      */
+    //todo 启动，创建一个服务端的Channel并且绑定一个端口号
     public ChannelFuture bind(int inetPort) {
         return bind(new InetSocketAddress(inetPort));
     }
@@ -250,19 +262,22 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * Create a new {@link Channel} and bind it.
+     * 创建一个channel并且绑定
      */
     public ChannelFuture bind(SocketAddress localAddress) {
         validate();
+        //todo 执行doBind()，以这个命名的方法表示netty私有的方法，跟进去
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
     /**
-     *
+     * todo 特别重要!!!
      * @param localAddress
      * @return
      */
     private ChannelFuture doBind(final SocketAddress localAddress) {
-        // 初始化并注册一个 Channel 对象，因为注册是异步的过程，所以返回一个 ChannelFuture 对象。
+        //初始化并注册一个 Channel 对象，因为注册是异步的过程，所以返回一个 ChannelFuture 对象。
+        //todo 初始化并注册Channel对象，带Future字眼的表示异步!!!它本身返回的就是一个ChannelFuture
         final ChannelFuture regFuture = initAndRegister();
 
         final Channel channel = regFuture.channel();
@@ -274,6 +289,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // TODO  继续绑定端口 doBind0
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -302,12 +318,17 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    //todo 初始化和注册
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
             // 通过工厂创建一个 channel
+            //todo 这个channelFactory是反射工厂ReflectiveChannelFactory对服务端来说，可以创建NioServerSocketChannel对象
+            //todo 而这个对象又是Selector的一种实现，就是SelectorProvider.providor()方法
+            //todo 实例化NioServerSocketChannel，通过反射走的是无参的构造，我们去追踪它的无参构造去
             channel = channelFactory.newChannel();
-            // 初始化 channel
+
+            //todo 初始化Channel，好几轮赋值以及添加handler等组件
             init(channel);
         } catch (Throwable t) {
             //channel 创建报错
@@ -322,19 +343,27 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        //todo  注册 group  == BOSS EventLoopGroup , -- > 暂时以为, 他是想确保把通过反射创建出来的NioServerSocketChannel注册进 BossGroup
+        //todo  目的是,让通过这个NioServerSocketChannel中的ServerSocketChannel 去 accept客户端的连接, 进而把连接通过Acceptor 扔给 WorkerGroup
+        //todo   config()--> ServerBootstrapConfig
+        //todo   group()--> NioEventLoopGroup -- workerGroup
+        //todo   我们用户点进去  进入 EventLoopGroup. 而 Debug 进入的是 MultithreadEventLoopGroup类 , 因为我这里的是 NioEventLoopGroup 是 MultithreadEventLoopGroup类的子类
+        //todo  !!! 忽略的一个重点, group是 MultithreadEventLoopGroup类  我们知道这个类中维护的是 BossGroup, 即将channel注册进bossgroup中
         ChannelFuture regFuture = config().group().register(channel);
-        if (regFuture.cause() != null) {
+        if (regFuture.cause() != null) {//todo 非空表示注册失败了
             if (channel.isRegistered()) {
                 channel.close();
             } else {
                 channel.unsafe().closeForcibly();
             }
         }
+        //todo 如果我们期待的结果并没有失败, 就会出现下面几种情况
         // 如果我们在这里，并且承诺没有失败，这是以下情况之一：
         // If we are here and the promise is not failed, it's one of the following cases:
         // 1) 如果我们尝试从事件循环注册，注册已经在这一点上完成
         // 1) If we attempted registration from the event loop, the registration has been completed at this point.
         //    例如，现在尝试 bind ()或 connect ()是安全的，因为通道已经注册。
+        //todo 如果我们 企图往事件循环中注册通道, 因为现在这个通道晶注册完毕了,所以 bind() 和 connet()是安全的
         //    i.e. It's safe to attempt bind() or connect() now because the channel has been registered.
         // 2) 如果我们尝试从另一个线程注册，注册请求已成功地添加到事件循环的任务队列中，以便稍后执行。
         // 2) If we attempted registration from the other thread, the registration request has been successfully
@@ -349,6 +378,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return regFuture;
     }
 
+    //todo 这是个抽象方法, 现在是服务端,很显然我们该去看ServerBootStrap的实现
     abstract void init(Channel channel) throws Exception;
 
     private static void doBind0(
@@ -362,9 +392,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         //todo 此方法在触发channelRegistered()之前调用，给用户一个机会在channelRegistered()中设置pipeline
         //todo 这是 eventLoop启动的逻辑，下面的Runable就是一个task任务，什么任务的呢? 绑定端口
         //todo 进入exeute()
+        //todo 这实际上是在开启
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
+                //todo 如果channel成功注册到了选择器上，就绑定端口
                 if (regFuture.isSuccess()) {
                     //todo channel绑定端口并且添加了一个listenner
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
@@ -397,6 +429,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * Returns the {@link AbstractBootstrapConfig} object that can be used to obtain the current config
      * of the bootstrap.
      */
+    //todo 返回一个 AbstractBootstrapConfig对象, 这个对象可以获取当前的 bootstrap 的 config
     public abstract AbstractBootstrapConfig<B, C> config();
 
     final Map.Entry<ChannelOption<?>, Object>[] newOptionsArray() {
@@ -417,7 +450,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return attributes.entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY);
     }
 
+    //todo 返回一个 Map
     final Map<ChannelOption<?>, Object> options0() {
+        // TODO:   new LinkedHashMap<ChannelOption<?>, Object>();
         return options;
     }
 
@@ -463,6 +498,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    //todo 循环赋值
     static void setChannelOptions(
             Channel channel, Map.Entry<ChannelOption<?>, Object>[] options, InternalLogger logger) {
         for (Map.Entry<ChannelOption<?>, Object> e: options) {
