@@ -339,7 +339,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return childGroup;
     }
 
-    // todo 返回被子通道使用的ChannelHandler  , 如果为空返回 null
+    //todo 返回被子通道使用的ChannelHandler  , 如果为空返回 null
     final ChannelHandler childHandler() {
         return childHandler;
     }

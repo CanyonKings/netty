@@ -41,6 +41,10 @@ import java.util.concurrent.RejectedExecutionException;
  * A skeletal {@link Channel} implementation.
  * channel 骨架实现
  */
+
+//todo 它本身就实现了Channel接口，重写了它的方法，添加这一步就是构造一个创建channel的骨架，让用户更方便的创建channel
+//todo 他有大量的子类，虽然子类并没有直接的初始化pipeline，但是通过构造函数的之间的传递最终会来到这里，在他的有参构造函数中实例化了pipeline
+//todo 所以他的子孙们，其实内置pipeline
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannel.class);
@@ -54,6 +58,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     private volatile SocketAddress localAddress;
     private volatile SocketAddress remoteAddress;
+
+    //todo 标记当前的channel所属的eventloop
     private volatile EventLoop eventLoop;
     private volatile boolean registered;
     private boolean closeInitiated;
@@ -71,8 +77,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        //todo channelId代表Chanel唯一的身份标志
         id = newId();
+        //todo 创建一个unsafe对象
         unsafe = newUnsafe();
+        //todo 在这里初始化了每一个channel都会有的pipeline组件
         pipeline = newChannelPipeline();
     }
 
@@ -119,6 +128,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      * Returns a new {@link DefaultChannelPipeline} instance.
      */
     protected DefaultChannelPipeline newChannelPipeline() {
+        //todo 跟进去
         return new DefaultChannelPipeline(this);
     }
 
@@ -144,6 +154,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return buf != null ? buf.bytesBeforeWritable() : Long.MAX_VALUE;
     }
 
+    //todo 举个例子，当NioSocketChannel调用parent()返回的就是NioServerSocketChannel
     @Override
     public Channel parent() {
         return parent;
@@ -287,8 +298,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return pipeline.deregister(promise);
     }
 
+    //todo 调用当前Channel的管道的read方法
     @Override
     public Channel read() {
+        //todo 这个read，也会从pipeline开始往后传播
         pipeline.read();
         return this;
     }
@@ -303,6 +316,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return pipeline.write(msg, promise);
     }
 
+    //todo 我们可以看到writeAndFlush从pipeline传播
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
         return pipeline.writeAndFlush(msg);
@@ -338,6 +352,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return closeFuture;
     }
 
+    //todo 返回真正的unsafe对象
     @Override
     public Unsafe unsafe() {
         return unsafe;
@@ -346,6 +361,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     /**
      * Create a new {@link AbstractUnsafe} instance which will be used for the life-time of the {@link Channel}
      */
+    //todo 创建一个unsafe实例，将被用于channel的整个生命周期当中
     protected abstract AbstractUnsafe newUnsafe();
 
     /**
@@ -463,6 +479,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             return remoteAddress0();
         }
 
+        //todo 入参eventLoop==SingleThreadEventLoop，promise==NioServerSocketChannel+Executor
         @Override
         public final void register(EventLoop eventLoop, final ChannelPromise promise) {
             ObjectUtil.checkNotNull(eventLoop, "eventLoop");
@@ -476,12 +493,25 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            //todo 赋值给自己的事件循环，把当前的eventLoop赋值给当前的Channel上，作用是标记后续的所有注册的操作都得交给我这个eventLoop处理
+            //todo 正好对应着下面的判断，保证了即便是在多线程的环境下一条channel也只能注册关联上唯一的eventLoop，唯一的线程
             AbstractChannel.this.eventLoop = eventLoop;
 
+            //todo 下面的分支判断里面执行的代码是一样的!!，
+            //todo 为什么? 这是netty的重点，它大量的使用线程，线程之间就会产生同步和并发的问题
+            //todo 下面的分支，目的就是把线程可能带来的问题降到最低限度
+            //todo 进入inEventLoop()-->判断当前执行这行代码的线程是否就是SingleThreadEventExecutor里面维护的那条唯一的线程
+            //todo 解释下面分支的必要性，一个eventLoop可以注册多个channel，但是channel的整个生命周期中所有的IO事件，仅仅和它关联上的thread有关系
+            //todo 而且一个eventLoop在他的整个生命周期中，只和唯一的线程进行绑定
+            //todo 当我们注册channel的时候就得确保给他专属它的thread，
+            //todo 如果是新的连接到了
             if (eventLoop.inEventLoop()) {
+                //todo 进入regist0()
                 register0(promise);
             } else {
                 try {
+                    //todo 如果不是，它以一个任务的形式提交事件循环，新的任务在新的线程开始，规避了多线程的并发
+                    //todo 他是SimpleThreadEventExucutor中execute()实现的，把任务添加到执行队列执行
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -507,26 +537,46 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+
+                //todo 进入这个方法doRegister()
+                //todo 它把系统创建的ServerSocketChannel注册进了选择器
                 doRegister();
                 neverRegistered = false;
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+
+                //todo 确保在notify the promise前调用 handlerAdded(...)
+                //todo 这是必需的，因为用户可能已经通过ChannelFutureListener中的管道触发了事件。
+                //todo 如果需要的话，执行HandlerAdded()方法
+                //todo 正是这个方法，回调了前面我们添加Initializer中添加Accpter的重要方法
                 pipeline.invokeHandlerAddedIfNeeded();
 
+                //todo 观察者模式!!!!!!
+                //todo 通知观察者，谁是观察者?
+                //todo 暂时理解ChannelHandler是观察者
                 safeSetSuccess(promise);
+
+                //todo 传播行为，传播什么行为呢?
+                //todo 在head-->ServerBootStraptAccptor--->tail传播事件ChannelRegistered，也就是挨个调用它们的ChannelRegisted函数
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
+                //todo 对于服务端:javaChannel().socket().isBound();
+                //todo 即，当Channel绑定上了端口isActive()才会返回true
+                //todo 对于客户端的连接ch.isOpen() && ch.isConnected(); 返回true，就是说Channel是open的，打开状态的就是true
                 if (isActive()) {
                     if (firstRegistration) {
+                        //todo 在pipeline中传播ChannelActive的行为，跟进去
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
                         // again so that we process inbound data.
                         //
                         // See https://github.com/netty/netty/issues/4805
+
+                        //todo 可以接受客户端的数据了
                         beginRead();
                     }
                 }
@@ -560,16 +610,24 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             boolean wasActive = isActive();
+            //todo 由于端口的绑定未完成，所以 wasActive是 false
+
             try {
+                //todo 绑定端口，进去就是NIO原生JDK绑定端口的代码
                 doBind(localAddress);
+                //todo 端口绑定完成isActive()是true
             } catch (Throwable t) {
                 safeSetFailure(promise, t);
                 closeIfClosed();
                 return;
             }
 
+            //todo 根据上面的逻辑判断，结果为true
             if (!wasActive && isActive()) {
                 invokeLater(new Runnable() {
+                    //todo 来到这里很重要，向下传递事件行为，传播行为的时候，从管道的第一个节点开始传播，第一个节点被封装成HeadContext的对象
+                    //todo 进入方法，去HeadContext里面查看做了哪些事情
+                    //todo 她会触发channel的read，最终重新为已经注册进selector的chanel，二次注册添加上感性趣的accept事件
                     @Override
                     public void run() {
                         pipeline.fireChannelActive();
@@ -577,6 +635,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 });
             }
 
+            //todo 观察者模式，设置改变状态，通知观察者的方法回调
             safeSetSuccess(promise);
         }
 
@@ -828,11 +887,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             });
         }
 
+        //todo 开始读取
         @Override
         public final void beginRead() {
             assertEventLoop();
 
             try {
+                //todo 进入
                 doBeginRead();
             } catch (final Exception e) {
                 invokeLater(new Runnable() {
@@ -845,12 +906,14 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
+        //todo write写buffer队列
         @Override
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
 
             ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
             if (outboundBuffer == null) {
+                //todo 缓存，写进来的buffer
                 try {
                     // release message now to prevent resource-leak
                     ReferenceCountUtil.release(msg);
@@ -867,6 +930,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             int size;
             try {
+                //todo buffer，Dirct化，(我们查看AbstractNioByteBuf的实现)
                 msg = filterOutboundMessage(msg);
                 size = pipeline.estimatorHandle().size(msg);
                 if (size < 0) {
@@ -881,9 +945,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            //todo 插入写队列将 msg 插入到 outboundBuffer
+            //todo outboundBuffer这个对象是ChannelOutBoundBuf类型的，它的作用就是起到一个容器的作用
+            //todo 下面看，是如何将msg添加进ChannelOutBoundBuf中的
             outboundBuffer.addMessage(msg, size, promise);
         }
 
+        //todo 最终传递到这里
         @Override
         public final void flush() {
             assertEventLoop();
@@ -892,8 +960,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             if (outboundBuffer == null) {
                 return;
             }
-
+            //todo 添加刷新标志，设置写状态
             outboundBuffer.addFlush();
+            //todo 遍历buffer队列，过滤byteBuf
             flush0();
         }
 
@@ -930,6 +999,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             try {
+                //todo 跟进去
                 doWrite(outboundBuffer);
             } catch (Throwable t) {
                 handleWriteError(t);
@@ -989,6 +1059,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
          * Marks the specified {@code promise} as success.  If the {@code promise} is done already, log a message.
          */
         protected final void safeSetSuccess(ChannelPromise promise) {
+            //todo 调用类promise的tryFailure方法
             if (!(promise instanceof VoidChannelPromise) && !promise.trySuccess()) {
                 logger.warn("Failed to mark a promise as success because it is done already: {}", promise);
             }
@@ -1077,6 +1148,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      *
      * Sub-classes may override this method
      */
+    //todo 找他的真正的实现，AbstractNioChannel
     protected void doRegister() throws Exception {
         // NOOP
     }
@@ -1117,11 +1189,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     /**
      * Schedule a read operation.
      */
+    //todo 真正安排读取的操作，进入由当前类的子类实现了AbstractNioChannel的实现
     protected abstract void doBeginRead() throws Exception;
 
     /**
      * Flush the content of the given buffer to the remote peer.
      */
+    //todo 进入AbstractNioByteBuf
     protected abstract void doWrite(ChannelOutboundBuffer in) throws Exception;
 
     /**

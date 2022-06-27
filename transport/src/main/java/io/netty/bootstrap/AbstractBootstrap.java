@@ -343,12 +343,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
-        //todo  注册 group  == BOSS EventLoopGroup , -- > 暂时以为, 他是想确保把通过反射创建出来的NioServerSocketChannel注册进 BossGroup
-        //todo  目的是,让通过这个NioServerSocketChannel中的ServerSocketChannel 去 accept客户端的连接, 进而把连接通过Acceptor 扔给 WorkerGroup
-        //todo   config()--> ServerBootstrapConfig
-        //todo   group()--> NioEventLoopGroup -- workerGroup
-        //todo   我们用户点进去  进入 EventLoopGroup. 而 Debug 进入的是 MultithreadEventLoopGroup类 , 因为我这里的是 NioEventLoopGroup 是 MultithreadEventLoopGroup类的子类
-        //todo  !!! 忽略的一个重点, group是 MultithreadEventLoopGroup类  我们知道这个类中维护的是 BossGroup, 即将channel注册进bossgroup中
+        //todo 把Channel注册到group，group就是BOSS EventLoopGroup，-->暂时以为，他是想确保把通过反射创建出来的NioServerSocketChannel注册进BossGroup
+        //todo 目的是，让通过这个NioServerSocketChannel中的ServerSocketChannel去accept客户端的连接，进而把连接通过Acceptor扔给WorkerGroup
+        //todo config() -->ServerBootstrapConfig
+        //todo group()  -->NioEventLoopGroup -- workerGroup
+        //todo 我们进入EventLoopGroup，而Debug进入的是 MultithreadEventLoopGroup类，因为我这里的是NioEventLoopGroup是MultithreadEventLoopGroup类的子类
+        //todo 忽略的一个重点，group是MultithreadEventLoopGroup类，我们知道这个类中维护的是BossGroup，即将channel注册进bossgroup中
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {//todo 非空表示注册失败了
             if (channel.isRegistered()) {

@@ -44,7 +44,7 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>,
     /**
      * Returns the configured {@link ChannelFactory} or {@code null} if non is configured yet.
      */
-    // todo 返回channel工厂
+    //todo 返回channel工厂
     @SuppressWarnings("deprecation")
     public final ChannelFactory<? extends C> channelFactory() {
         return bootstrap.channelFactory();
@@ -61,7 +61,7 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>,
     /**
      * Returns a copy of the configured options.
      */
-    // todo  返回一份options的拷贝
+    //todo  返回一份options的拷贝
     public final Map<ChannelOption<?>, Object> options() {
         return bootstrap.options();
     }
@@ -69,7 +69,7 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>,
     /**
      * Returns a copy of the configured attributes.
      */
-    // todo  返回一份 attributes 的拷贝
+    //todo  返回一份 attributes 的拷贝
     public final Map<AttributeKey<?>, Object> attrs() {
         return bootstrap.attrs();
     }
@@ -77,7 +77,7 @@ public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>,
     /**
      * Returns the configured {@link EventLoopGroup} or {@code null} if non is configured yet.
      */
-    // todo 返回配置好的  事件循环组
+    //todo 返回配置好的  事件循环组
     @SuppressWarnings("deprecation")
     public final EventLoopGroup group() {
         return bootstrap.group();
