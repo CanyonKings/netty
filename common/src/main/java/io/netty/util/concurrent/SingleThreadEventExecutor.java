@@ -69,17 +69,22 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     };
 
+    //todo 用Atomic*技术记录当前线程状态
     private static final AtomicIntegerFieldUpdater<SingleThreadEventExecutor> STATE_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(SingleThreadEventExecutor.class, "state");
     private static final AtomicReferenceFieldUpdater<SingleThreadEventExecutor, ThreadProperties> PROPERTIES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(
                     SingleThreadEventExecutor.class, ThreadProperties.class, "threadProperties");
 
+    //todo 事件任务队列
     private final Queue<Runnable> taskQueue;
 
+    //todo 执行事件线程，可以看出只有一个线程用来记录executor的当前线程
     private volatile Thread thread;
     @SuppressWarnings("unused")
     private volatile ThreadProperties threadProperties;
+
+    //todo 主要负责监控该线程的生命周期，提取出当前线程然后用thread记录
     private final Executor executor;
     private volatile boolean interrupted;
 
@@ -217,6 +222,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     protected static Runnable pollTaskFrom(Queue<Runnable> taskQueue) {
         for (;;) {
             Runnable task = taskQueue.poll();
+            //忽略WAKEUP_TASK类型任务
             if (task != WAKEUP_TASK) {
                 return task;
             }
@@ -433,7 +439,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             return false;
         }
         for (;;) {
+            //安全执行任务
             safeExecute(task);
+            //继续执行剩余任务
             task = pollTaskFrom(taskQueue);
             if (task == null) {
                 return true;
@@ -466,17 +474,18 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * the tasks in the task queue and returns if it ran longer than {@code timeoutNanos}.
      */
     protected boolean runAllTasks(long timeoutNanos) {
-        //todo 聚合任务，会把定时任务放入普通的任务队列中进入查看
+        //todo 先执行周期任务，会把周期任务放入普通的任务队列中，进入查看
         fetchFromScheduledTaskQueue();
 
-        //todo 从普通的队列中拿出一个任务
+        //todo 从普通的队列中拿出一个任务，如果为空执行所有tailTasks
         Runnable task = pollTask();
+        //todo 如果taskQueue没有任务，立即执行子类的tailTasks
         if (task == null) {
             afterRunningAllTasks();
             return false;
         }
 
-        //todo 计算截止时间，表示任务的执行，最好别超过这个时间
+        //todo 计算超时时间 = 当前nanoTime + timeoutNanos，最好别超过这个时间
         final long deadline = timeoutNanos > 0 ? ScheduledFutureTask.nanoTime() + timeoutNanos : 0;
         long runTasks = 0;
         long lastExecutionTime;
@@ -489,8 +498,11 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             runTasks ++;
 
             // Check timeout every 64 tasks because nanoTime() is relatively expensive.
+            //每64个任务检查一次超时，因为 nanTime ()相对昂贵。
             // XXX: Hard-coded value - will make it configurable if it is really a problem.
+            //64是硬编码值，如果它真的是一个问题，将使它可配置。
             //todo 因为nanoTime();的执行也是个相对耗时的操作，因此没执行完64个任务后检查有没有超时
+            //当执行任务次数大于64判断是否超时，防止长时间独占CPU
             if ((runTasks & 0x3F) == 0) {
                 lastExecutionTime = ScheduledFutureTask.nanoTime();
                 if (lastExecutionTime >= deadline) {
@@ -531,8 +543,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
-     * Returns the absolute point in time (relative to {@link #nanoTime()}) at which the next
-     * closest scheduled task should run.
+     * Returns the absolute point in time (relative to {@link #nanoTime()}) at which the next closest scheduled task should run.
      */
     @UnstableApi
     protected long deadlineNanos() {
@@ -546,9 +557,8 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     /**
      * Updates the internal timestamp that tells when a submitted task was executed most recently.
      * {@link #runAllTasks()} and {@link #runAllTasks(long)} updates this timestamp automatically, and thus there's
-     * usually no need to call this method.  However, if you take the tasks manually using {@link #takeTask()} or
-     * {@link #pollTask()}, you have to call this method at the end of task execution loop for accurate quiet period
-     * checks.
+     * usually no need to call this method.
+     * However, if you take the tasks manually using {@link #takeTask()} or {@link #pollTask()}, you have to call this method at the end of task execution loop for accurate quiet period checks.
      */
     protected void updateLastExecutionTime() {
         lastExecutionTime = ScheduledFutureTask.nanoTime();
@@ -971,6 +981,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private static final long SCHEDULE_PURGE_INTERVAL = TimeUnit.SECONDS.toNanos(1);
 
+    //todo 启动线程做了比较判断
     private void startThread() {
         if (state == ST_NOT_STARTED) {
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
@@ -1022,11 +1033,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 updateLastExecutionTime();
                 try {
                     //todo 实际启动线程到这里NioEventLoop就启动完成了
+                    //todo 这里调用的是子类，注意子类是死循环不停的执行任务
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {
                     logger.warn("Unexpected exception from an event executor: ", t);
                 } finally {
+                    //todo 更改线程结束状态
                     for (;;) {
                         int oldState = state;
                         if (oldState >= ST_SHUTTING_DOWN || STATE_UPDATER.compareAndSet(
@@ -1045,17 +1058,23 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                     }
 
                     try {
-                        // Run all remaining tasks and shutdown hooks. At this point the event loop
-                        // is in ST_SHUTTING_DOWN state still accepting tasks which is needed for
-                        // graceful shutdown with quietPeriod.
+                        // Run all remaining tasks and shutdown hooks.
+                        //运行所有剩余的任务和关闭挂钩。
+                        // At this point the event loop is in ST_SHUTTING_DOWN state still accepting tasks which is needed for graceful shutdown with quietPeriod.
+                        //此时，事件循环处于 ST_SHUTING_DOWN 状态，仍然接受任务，这是使用 quietPeriod 优雅地关闭所需的任务。
+                        //todo 执行未完成任务同 shutdown hooks.
                         for (;;) {
                             if (confirmShutdown()) {
                                 break;
                             }
                         }
 
-                        // Now we want to make sure no more tasks can be added from this point. This is
-                        // achieved by switching the state. Any new tasks beyond this point will be rejected.
+                        // Now we want to make sure no more tasks can be added from this point.
+                        //现在，我们希望确保此时不再添加任务。
+                        // This is achieved by switching the state.
+                        //这是通过切换状态实现的。
+                        // Any new tasks beyond this point will be rejected.
+                        //任何超过此点的新任务都将被拒绝
                         for (;;) {
                             int oldState = state;
                             if (oldState >= ST_SHUTDOWN || STATE_UPDATER.compareAndSet(
@@ -1065,15 +1084,18 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                         }
 
                         // We have the final set of tasks in the queue now, no more can be added, run all remaining.
+                        //现在队列中已经有了最后一组任务，不能再添加任何任务，运行所有剩余的任务。
                         // No need to loop here, this is the final pass.
+                        //不需要在这里循环，这是最后的通行证。
                         confirmShutdown();
                     } finally {
                         try {
                             cleanup();
                         } finally {
-                            // Lets remove all FastThreadLocals for the Thread as we are about to terminate and notify
-                            // the future. The user may block on the future and once it unblocks the JVM may terminate
-                            // and start unloading classes.
+                            // Lets remove all FastThreadLocals for the Thread as we are about to terminate and notify the future.
+                            //让我们删除线程的所有 FastThreadLocals，因为我们即将终止并通知Futura。
+                            // The user may block on the future and once it unblocks the JVM may terminate and start unloading classes.
+                            //用户可能会阻塞未来，一旦解除阻塞，JVM 可能会终止并开始卸载类
                             // See https://github.com/netty/netty/issues/6596.
                             FastThreadLocal.removeAll();
 

@@ -31,11 +31,14 @@ public final class DefaultEventExecutorChooserFactory implements EventExecutorCh
 
     private DefaultEventExecutorChooserFactory() { }
 
+    //todo 执行器选择，即选取EvenLoop，通常位运算优于取模运算
     @Override
     public EventExecutorChooser newChooser(EventExecutor[] executors) {
         if (isPowerOfTwo(executors.length)) {
+            //todo 线程数是2^n时，指定的选择器，通过位运算获取执行器
             return new PowerOfTwoEventExecutorChooser(executors);
         } else {
+            //todo 线程数不是2^n时，指定的选择器，通过取模运算获取执行器
             return new GenericEventExecutorChooser(executors);
         }
     }

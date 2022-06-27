@@ -149,8 +149,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         //todo 进入到父类，着重看他是如何创建出TaskQueue的，addTaskWekesUp默认为false,
         super(parent, executor, false, newTaskQueue(taskQueueFactory), newTaskQueue(tailTaskQueueFactory),
                 rejectedExecutionHandler);
-        //todo 常用的属性
+
+        //todo selector提供器，EvenLoopGroup创建时初始化
         this.provider = ObjectUtil.checkNotNull(selectorProvider, "selectorProvider");
+        //todo selector策略，EvenLoopGroup创建时初始化
         this.selectStrategy = ObjectUtil.checkNotNull(strategy, "selectStrategy");
 
         //todo 获取Selector选择器

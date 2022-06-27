@@ -88,7 +88,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
-                //todo 创建EventLoop
+                //todo 创建EventLoop，由子类负责实现
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
@@ -97,6 +97,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             } finally {
                 if (!success) {
                     for (int j = 0; j < i; j ++) {
+                        //todo 创建NioEventLoop失败后进行资源的一些释放
                         children[j].shutdownGracefully();
                     }
 
@@ -129,11 +130,14 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         };
 
         for (EventExecutor e: children) {
+            //todo 给每一个成功创建的EventExecutor绑定一个监听终止事件
             e.terminationFuture().addListener(terminationListener);
         }
 
         Set<EventExecutor> childrenSet = new LinkedHashSet<EventExecutor>(children.length);
         Collections.addAll(childrenSet, children);
+
+        //todo 弄一个只读的EventExecutor数组，方便后面快速迭代，不会抛出并发修改异常
         readonlyChildren = Collections.unmodifiableSet(childrenSet);
     }
 
