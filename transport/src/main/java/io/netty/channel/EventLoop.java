@@ -24,6 +24,7 @@ import io.netty.util.concurrent.OrderedEventExecutor;
  * implementation details and internals.
  *
  */
+
 public interface EventLoop extends OrderedEventExecutor, EventLoopGroup {
     @Override
     EventLoopGroup parent();

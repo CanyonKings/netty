@@ -54,6 +54,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  * SingleThreadEventLoop实现将Channel注册到Selector，事件循环中的多个工具也是如此
  */
+//todo NioEventLoop的工作模式实际上就是开启一个单线程跑一个死循环，然后一直轮询taskQueue队列是否有任务添加进来，再就去处理任务;
+//todo 还有就是如果注册在selector上的channel有兴趣事件进来，也会去处理selectorKeys
 public final class NioEventLoop extends SingleThreadEventLoop {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioEventLoop.class);
@@ -473,10 +475,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     @Override
     protected void run() {
         int selectCnt = 0;
+        //todo 死循环，不断轮询
         for (;;) {
             try {
                 int strategy;
                 try {
+                    //todo 按默认配置的话要么返回select.selectNow()，要么返回SelectStrategy.SELECT
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
                     case SelectStrategy.CONTINUE:
@@ -522,23 +526,25 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 if (ioRatio == 100) {
                     try {
                         if (strategy > 0) {
-                            //todo 处理 处理发生的感性趣的事件
+                            //todo 处理发生的感性趣的事件,IO操作根据selectedKeys去处理
                             processSelectedKeys();
                         }
                     } finally {
                         // Ensure we always run tasks.
-                        //todo 用于处理本eventLoop外的线程扔到taskQueue中的任务
+                        //todo 用于处理本eventLoop外的线程扔到taskQueue中的任务，
+                        //todo 保证执行完所有的任务
                         ranTasks = runAllTasks();
                     }
                 } else if (strategy > 0) {//todo 因为ioRatio默认是50所以来else
                     //todo 记录下开始的时间
                     final long ioStartTime = System.nanoTime();
                     try {
-                        //todo 处理IO事件
+                        //todo IO操作，根据selectedKeys去处理
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
                         //todo 根据处理IO事件耗时，控制下面的runAllTasks执行任务不能超过ioTime时间
+                        //todo 按一定的比例去处理任务，有可能遗留一部分任务下次进行处理
                         final long ioTime = System.nanoTime() - ioStartTime;
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
@@ -568,6 +574,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             } finally {
                 // Always handle shutdown even if the loop processing threw an exception.
                 try {
+                    //todo 释放资源，将注册的channel全部关闭掉。
                     if (isShuttingDown()) {
                         closeAll();
                         if (confirmShutdown()) {
@@ -693,12 +700,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         for (int i = 0; i < selectedKeys.size; ++i) {
             final SelectionKey k = selectedKeys.keys[i];
             // null out entry in the array to allow to have it GC'ed once the Channel close
-            //todo 数组输出空项，从而允许在channel关闭时对其进行垃圾回收
+            //清空数组中的条目，以便在通道关闭时对其进行 GC
             // See https://github.com/netty/netty/issues/2363
+            //todo 数组输出空项，从而允许在channel关闭时对其进行垃圾回收
             //todo 数组中当前循环对应的keys质空，这种感兴趣的事件只处理一次就行
             selectedKeys.keys[i] = null;
 
-            //todo 获取出attachment，默认情况下就是注册进Selector时，传入的第三个参数  this===>   NioServerSocketChannel
+            //todo 获取出attachment，默认情况下就是注册进Selector时，传入的第三个参数 this===>NioServerSocketChannel
             //todo 一个Selector中可能被绑定上了成千上万个Channel，通过K+attachment的手段，精确的取出发生指定事件的channel，进而获取channel中的unsafe类进行下一步处理
             final Object a = k.attachment();
 

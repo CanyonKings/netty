@@ -387,7 +387,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         boolean ranAtLeastOne = false;
 
         do {
+            //todo 这里会从周期任务队列中将达到执行事件的task丢到taskQueue中去
             fetchedAll = fetchFromScheduledTaskQueue();
+            //todo 执行taskQueue中所有的task
             if (runAllTasksFrom(taskQueue)) {
                 ranAtLeastOne = true;
             }
@@ -396,6 +398,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (ranAtLeastOne) {
             lastExecutionTime = ScheduledFutureTask.nanoTime();
         }
+        //todo 这个是执行上面所说的tailTasks中的task
         afterRunningAllTasks();
         return ranAtLeastOne;
     }
@@ -872,7 +875,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         //todo 把任务丢进队列
         addTask(task);
         if (!inEventLoop) {
-            //todo 开启线程进入查看
+            //todo 开启工作线程，实际上也就是执行NioEventLoop中的run方法
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
